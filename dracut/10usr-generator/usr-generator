@@ -35,6 +35,7 @@ cmdline_arg() {
 usr=$(cmdline_arg usr)
 usrfstype=$(cmdline_arg usrfstype auto)
 usrflags=$(cmdline_arg usrflags ro)
+usrflags="${usrflags},norecovery"
 
 case "${usr}" in
     LABEL=*)
@@ -58,7 +59,19 @@ esac
 
 # Only proceed if the source is a path.
 if [[ "${usr}" != /* ]]; then
+  if [[ -z "${usr}" && -f /usr.squashfs ]]; then
+    # Don't set "norecovery" for squashfs
     exit 0
+  fi
+  # Add "norecovery" to systemd-fstab-generator's unit and exit
+  mount_usrflags=$(cmdline_arg mount.usrflags ro)
+  mount_usrflags="${mount_usrflags},norecovery"
+  mkdir -p "${UNIT_DIR}/sysroot-usr.mount.d"
+  cat >"${UNIT_DIR}/sysroot-usr.mount.d/10-norecovery.conf" <<EOF
+[Mount]
+Options=${mount_usrflags}
+EOF
+  exit 0
 fi
 
 cat >"${UNIT_DIR}/sysroot-usr.mount" <<EOF
